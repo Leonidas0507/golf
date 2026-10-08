@@ -64,7 +64,7 @@ function uuid() {
 }
 let voterId = store.get('voterId');
 if (!voterId) { voterId = uuid(); store.set('voterId', voterId); }
-let name = store.get('voterName') || '', nick = store.get('voterNick') || '', editing = !name;
+let name = store.get('voterName') || '', nick = store.get('voterNick') || '', hcp = store.get('voterHcp') || '', editing = !name;
 let poll = null, results = null, myChoice = null, shown = '', busy = false;
 
 function h(tag, cls, text) {
@@ -85,13 +85,17 @@ async function api(path, body) {
 
 function render() {
   // Tegn bare på nytt når noe faktisk har endret seg, så knapper ikke blinker
-  const key = JSON.stringify([name, nick, editing, poll, results, myChoice]);
+  const key = JSON.stringify([name, nick, hcp, editing, poll, results, myChoice]);
   if (key === shown) return;
   shown = key;
   app.innerHTML = '';
 
   if (editing) {
-    const input = h('input'), nickInput = h('input'), btn = h('button', 'btn', name ? 'Lagre' : 'Bli med');
+    const input = h('input'), nickInput = h('input'), hcpInput = h('input'), btn = h('button', 'btn', name ? 'Lagre' : 'Bli med');
+    hcpInput.placeholder = 'Handicap (f.eks. 18,4)';
+    hcpInput.inputMode = 'decimal';
+    hcpInput.maxLength = 5;
+    hcpInput.value = hcp;
     input.placeholder = 'Navnet ditt';
     input.maxLength = 30;
     input.value = name;
@@ -104,11 +108,20 @@ function render() {
       busy = true;
       btn.textContent = 'Lagrer …';
       try {
-        await api('rpc/register_player', { p_voter_id: voterId, p_name: v, p_nick: nickInput.value.trim() });
+        const body = { p_voter_id: voterId, p_name: v, p_nick: nickInput.value.trim(), p_hcp: hcpInput.value.trim() };
+        try { await api('rpc/register_player', body); }
+        catch (e) {
+          // Databasen har ikke fått hcp-feltet ennå: registrer uten
+          if (!String(e.message).includes('PGRST202')) throw e;
+          delete body.p_hcp;
+          await api('rpc/register_player', body);
+        }
         name = v;
         nick = nickInput.value.trim();
+        hcp = hcpInput.value.trim();
         store.set('voterName', name);
         store.set('voterNick', nick);
+        store.set('voterHcp', hcp);
         editing = false;
       } catch (e) { alert('Klarte ikke å lagre. Sjekk nettet og prøv igjen.'); }
       busy = false;
@@ -116,7 +129,7 @@ function render() {
       render();
     };
     btn.onclick = join;
-    app.append(h('h1', '', 'Hvem er du?'), input, nickInput, btn);
+    app.append(h('h1', '', 'Hvem er du?'), input, nickInput, hcpInput, btn);
     return;
   }
 
