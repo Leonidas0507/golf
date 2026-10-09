@@ -102,7 +102,11 @@ function render() {
     app.append(h('h1', '', '30-sekunderen'), w);
   } else if (phase === 'armed') {
     const b = h('button', 'big start', 'Start');
-    b.onclick = () => { t0 = performance.now(); phase = 'running'; render(); };
+    b.onclick = () => {
+      t0 = performance.now(); phase = 'running'; render();
+      // Hold skjermen våken så mobilen ikke låser seg midt i de 30 sekundene
+      try { if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
+    };
     app.append(h('div', 'muted', 'Trykk START i samme øyeblikk som storskjermen sier GÅ. Ikke før.'), b);
   } else if (phase === 'running') {
     const b = h('button', 'big stop', 'Stopp');
