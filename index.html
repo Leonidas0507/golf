@@ -91,7 +91,7 @@ function render() {
   app.innerHTML = '';
 
   if (editing) {
-    const input = h('input'), nickInput = h('input'), hcpInput = h('input'), btn = h('button', 'btn', name ? 'Lagre' : 'Bli med');
+    const input = h('input'), hcpInput = h('input'), btn = h('button', 'btn', name ? 'Lagre' : 'Bli med');
     hcpInput.placeholder = 'Handicap (f.eks. 18,4)';
     hcpInput.inputMode = 'decimal';
     hcpInput.maxLength = 5;
@@ -99,16 +99,13 @@ function render() {
     input.placeholder = 'Navnet ditt';
     input.maxLength = 30;
     input.value = name;
-    nickInput.placeholder = 'Kallenavn eller slagord (vises på storskjermen)';
-    nickInput.maxLength = 40;
-    nickInput.value = nick;
     const join = async () => {
       const v = input.value.trim();
       if (!v || busy) return;
       busy = true;
       btn.textContent = 'Lagrer …';
       try {
-        const body = { p_voter_id: voterId, p_name: v, p_nick: nickInput.value.trim(), p_hcp: hcpInput.value.trim() };
+        const body = { p_voter_id: voterId, p_name: v, p_nick: '', p_hcp: hcpInput.value.trim() };
         try { await api('rpc/register_player', body); }
         catch (e) {
           // Databasen har ikke fått hcp-feltet ennå: registrer uten
@@ -117,7 +114,6 @@ function render() {
           await api('rpc/register_player', body);
         }
         name = v;
-        nick = nickInput.value.trim();
         hcp = hcpInput.value.trim();
         store.set('voterName', name);
         store.set('voterNick', nick);
@@ -129,13 +125,13 @@ function render() {
       render();
     };
     btn.onclick = join;
-    app.append(h('h1', '', 'Hvem er du?'), input, nickInput, hcpInput, btn);
+    app.append(h('h1', '', 'Hvem er du?'), input, hcpInput, btn);
     return;
   }
 
   const top = h('div', 'top'), change = h('button', '', 'Endre navn');
   change.onclick = () => { editing = true; render(); };
-  top.append(h('span', '', 'Du er ' + name + (nick ? ' «' + nick + '»' : '')), change);
+  top.append(h('span', '', 'Du er ' + name), change);
   app.append(top);
 
   if (!poll) {
