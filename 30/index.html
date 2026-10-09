@@ -114,8 +114,8 @@ function render() {
     app.append(h('div', 'muted', 'Trykk STOPP når du tror det har gått nøyaktig 30 sekunder. Ingen klokke, bare magefølelsen.'), b);
   } else if (phase === 'done') {
     const d = h('div', 'done');
-    d.append(h('div', 'muted', 'Levert ✓'), h('div', 'muted', 'Tiden din kommer på storskjermen.'));
-    app.append(h('h1', '', 'Bra.'), d);
+    d.append(h('div', 'muted', 'Din tid fra START til STOPP'), h('div', 't', fmt(myMs)), h('div', 'muted', 'Levert ✓ – bom og lagresultat kommer på storskjermen.'));
+    app.append(h('h1', '', 'Stoppet.'), d);
   } else if (phase === 'closed') {
     const d = h('div', 'done');
     d.append(h('div', 'muted', 'Din tid'), h('div', 't', myMs != null ? fmt(myMs) : '–'), h('div', 'muted', myMs == null ? 'Du rakk ikke å levere denne runden.' : Math.abs(myMs - 30000) < 500 ? 'Du er en klokke.' : myMs > 30000 ? 'For sent.' : 'For tidlig.'));
