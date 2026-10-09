@@ -193,7 +193,7 @@ async function vote(i) {
 
 async function tick() {
   try {
-    const rows = await api('polls?select=id,question,options,status&order=id.desc&limit=1');
+    const rows = await api('polls?select=id,question,options,status&question=not.like.30SEK:*&order=id.desc&limit=1');
     let p = rows[0] || null;
     // Et avsluttet spørsmål vises bare hvis du var med på det; gamle resultater skal ikke dukke opp før verten starter
     if (p && p.status === 'open') seenOpen.add(p.id);
