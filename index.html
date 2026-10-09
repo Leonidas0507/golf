@@ -91,12 +91,8 @@ function render() {
   app.innerHTML = '';
 
   if (editing) {
-    const input = h('input'), hcpInput = h('input'), btn = h('button', 'btn', name ? 'Lagre' : 'Bli med');
-    hcpInput.placeholder = 'Handicap (f.eks. 18,4)';
-    hcpInput.inputMode = 'decimal';
-    hcpInput.maxLength = 5;
-    hcpInput.value = hcp;
-    input.placeholder = 'Navnet ditt';
+    const input = h('input'), btn = h('button', 'btn', name ? 'Lagre' : 'Bli med');
+    input.placeholder = 'Fornavnet ditt';
     input.maxLength = 30;
     input.value = name;
     const join = async () => {
@@ -105,7 +101,7 @@ function render() {
       busy = true;
       btn.textContent = 'Lagrer …';
       try {
-        const body = { p_voter_id: voterId, p_name: v, p_nick: '', p_hcp: hcpInput.value.trim() };
+        const body = { p_voter_id: voterId, p_name: v, p_nick: '', p_hcp: '' };
         try { await api('rpc/register_player', body); }
         catch (e) {
           // Databasen har ikke fått hcp-feltet ennå: registrer uten
@@ -114,7 +110,6 @@ function render() {
           await api('rpc/register_player', body);
         }
         name = v;
-        hcp = hcpInput.value.trim();
         store.set('voterName', name);
         store.set('voterNick', nick);
         store.set('voterHcp', hcp);
@@ -125,7 +120,7 @@ function render() {
       render();
     };
     btn.onclick = join;
-    app.append(h('h1', '', 'Hvem er du?'), input, hcpInput, btn);
+    app.append(h('h1', '', 'Hvem er du?'), input, btn);
     return;
   }
 
