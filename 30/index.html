@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#07170f">
+<title>30-sekunderen</title>
+<style>
+  :root { --bg: #07170f; --panel: #0f2a1c; --line: #1f4a33; --text: #f3efe2; --muted: #9db3a4; --gold: #e8c15a; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(ellipse at 50% -10%, #17402a 0%, var(--bg) 60%) fixed var(--bg);
+    color: var(--text); font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    padding: max(20px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; min-height: 100%; user-select: none; -webkit-user-select: none;
+  }
+  main { flex: 1; display: flex; flex-direction: column; gap: 16px; max-width: 520px; margin: 0 auto; width: 100%; }
+  h1 { font-family: "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; font-size: 34px; line-height: 1.05; margin: 8px 0; color: var(--gold); }
+  .top { color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; }
+  .top button { background: none; border: 0; color: var(--muted); text-decoration: underline; font: inherit; }
+  .muted { color: var(--muted); font-size: 16px; line-height: 1.4; }
+  input { width: 100%; font-size: 20px; padding: 16px; border-radius: 14px; border: 2px solid var(--line); background: var(--panel); color: var(--text); }
+  .btn { width: 100%; font: inherit; font-size: 20px; font-weight: 700; padding: 18px; border-radius: 14px; border: 0; background: var(--gold); color: #1b1503; touch-action: manipulation; }
+  .big {
+    flex: 1; min-height: 46vh; width: 100%; border: 0; border-radius: 28px; font: inherit; touch-action: manipulation;
+    font-family: "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; font-weight: 800; font-size: 64px; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .big.start { background: #2f9a4f; color: #fff; box-shadow: 0 0 60px #2f9a4f88; }
+  .big.stop { background: #d21f35; color: #fff; box-shadow: 0 0 60px #d21f3588; animation: pulse 1s ease-in-out infinite alternate; }
+  @keyframes pulse { to { transform: scale(.97); } }
+  .big:active { transform: scale(.95); }
+  .wait { text-align: center; padding: 50px 0; font-size: 20px; color: var(--muted); }
+  .wait .ball { font-size: 56px; display: block; margin-bottom: 14px; animation: bounce 1s ease-in-out infinite alternate; }
+  @keyframes bounce { to { transform: translateY(-16px); } }
+  .done { text-align: center; padding: 40px 0; }
+  .done .t { font-family: "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; font-weight: 800; font-size: 72px; color: var(--gold); line-height: 1; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+const URL_ = 'https://bdzhjlnzlmibndqxwxtr.supabase.co', KEY = 'sb_publishable_dk2JzLzlHaSY3g0qHiH1mA_WLr_4nfK';
+const app = document.getElementById('app');
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+function uuid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = b[6] & 15 | 64; b[8] = b[8] & 63 | 128;
+  const x = [...b].map(v => v.toString(16).padStart(2, '0')).join('');
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20)}`;
+}
+// Samme id og navn som på stemmesiden (samme nettsted)
+let voterId = store.get('voterId');
+if (!voterId) { voterId = uuid(); store.set('voterId', voterId); }
+let name = store.get('voterName') || '';
+// round: åpen runde fra storskjermen. phase: idle | armed | running | done | closed
+let round = null, phase = 'idle', t0 = 0, myMs = null, sentRound = null, shown = '';
+
+function h(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+async function api(path, body) {
+  const r = await fetch(URL_ + '/rest/v1/' + path, {
+    method: body ? 'POST' : 'GET',
+    headers: { apikey: KEY, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok) throw new Error((await r.text()) || r.status);
+  return r.status === 204 ? null : r.json();
+}
+function fmt(ms) { return (ms / 1000).toFixed(2).replace('.', ',') + ' s'; }
+
+function render() {
+  const key = JSON.stringify([name, round, phase, myMs]);
+  if (key === shown) return;
+  shown = key;
+  app.innerHTML = '';
+  if (!name) {
+    const input = h('input'), btn = h('button', 'btn', 'Klar');
+    input.placeholder = 'Fornavnet ditt';
+    input.maxLength = 30;
+    btn.onclick = () => { const v = input.value.trim(); if (!v) return; name = v; store.set('voterName', v); render(); };
+    app.append(h('h1', '', '30-sekunderen'), h('div', 'muted', 'Skriv fornavnet ditt, så står du klar.'), input, btn);
+    return;
+  }
+  const top = h('div', 'top'), change = h('button', '', 'Bytt navn');
+  change.onclick = () => { name = ''; render(); };
+  top.append(h('span', '', 'Du er ' + name), change);
+  app.append(top);
+
+  if (phase === 'idle') {
+    const w = h('div', 'wait');
+    w.append(h('span', 'ball', '⏱️'), 'Venter på at storskjermen gjør klar …');
+    app.append(h('h1', '', '30-sekunderen'), w);
+  } else if (phase === 'armed') {
+    const b = h('button', 'big start', 'Start');
+    b.onclick = () => { t0 = performance.now(); phase = 'running'; render(); };
+    app.append(h('div', 'muted', 'Trykk START i samme øyeblikk som storskjermen sier GÅ. Ikke før.'), b);
+  } else if (phase === 'running') {
+    const b = h('button', 'big stop', 'Stopp');
+    b.onclick = () => { myMs = Math.round(performance.now() - t0); phase = 'done'; render(); submit(); };
+    app.append(h('div', 'muted', 'Trykk STOPP når du tror det har gått nøyaktig 30 sekunder. Ingen klokke, bare magefølelsen.'), b);
+  } else if (phase === 'done') {
+    const d = h('div', 'done');
+    d.append(h('div', 'muted', 'Levert ✓'), h('div', 'muted', 'Tiden din kommer på storskjermen.'));
+    app.append(h('h1', '', 'Bra.'), d);
+  } else if (phase === 'closed') {
+    const d = h('div', 'done');
+    d.append(h('div', 'muted', 'Din tid'), h('div', 't', myMs != null ? fmt(myMs) : '–'), h('div', 'muted', myMs == null ? 'Du rakk ikke å levere denne runden.' : Math.abs(myMs - 30000) < 500 ? 'Du er en klokke.' : myMs > 30000 ? 'For sent.' : 'For tidlig.'));
+    app.append(h('h1', '', 'Runden er over'), d);
+  }
+}
+async function submit() {
+  if (sentRound === round) return;
+  for (let i = 0; i < 5; i++) {
+    try { await api('rpc/duel_submit', { p_round: round, p_voter_id: voterId, p_name: name, p_ms: myMs }); sentRound = round; return; }
+    catch (e) { if (String(e.message).includes('round not open')) return; await new Promise(r => setTimeout(r, 1500)); }
+  }
+}
+async function tick() {
+  try {
+    const rows = await api("polls?select=id,question,status&question=like.30SEK:*&order=id.desc&limit=1");
+    const p = rows[0] || null;
+    const open = p && p.status === 'open' ? p.question.slice(6) : null;
+    if (open && open !== round) { round = open; phase = 'armed'; myMs = null; }   // ny runde
+    else if (!open && round && phase !== 'closed' && phase !== 'idle') {           // runden er stengt
+      if (phase === 'done') submit();
+      phase = 'closed';
+    }
+    render();
+  } catch (e) {}
+}
+render();
+tick();
+setInterval(tick, 1500);
+</script>
+</body>
+</html>
