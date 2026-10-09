@@ -65,7 +65,19 @@ function uuid() {
 let voterId = store.get('voterId');
 if (!voterId) { voterId = uuid(); store.set('voterId', voterId); }
 let name = store.get('voterName') || '', nick = store.get('voterNick') || '', hcp = store.get('voterHcp') || '', editing = !name;
-let poll = null, results = null, myChoice = null, shown = '', busy = false;
+let poll = null, results = null, myChoice = null, shown = '', busy = false, ticks = 0;
+const seenOpen = new Set();
+// Meld inn navnet på nytt (upsert) – verten kan ha nullstilt databasen etter at du registrerte deg
+async function ensureRegistered() {
+  if (!name) return;
+  const body = { p_voter_id: voterId, p_name: name, p_nick: '', p_hcp: '' };
+  try { await api('rpc/register_player', body); }
+  catch (e) {
+    if (!String(e.message).includes('PGRST202')) return;
+    delete body.p_hcp;
+    try { await api('rpc/register_player', body); } catch (e2) {}
+  }
+}
 
 function h(tag, cls, text) {
   const e = document.createElement(tag);
@@ -182,7 +194,10 @@ async function vote(i) {
 async function tick() {
   try {
     const rows = await api('polls?select=id,question,options,status&order=id.desc&limit=1');
-    const p = rows[0] || null;
+    let p = rows[0] || null;
+    // Et avsluttet spørsmål vises bare hvis du var med på det; gamle resultater skal ikke dukke opp før verten starter
+    if (p && p.status === 'open') seenOpen.add(p.id);
+    if (p && p.status === 'closed' && !seenOpen.has(p.id) && store.get('choice-' + p.id) == null) p = null;
     if (!p || !poll || p.id !== poll.id) {
       const saved = p ? store.get('choice-' + p.id) : null;
       myChoice = saved == null ? null : +saved;
@@ -194,8 +209,8 @@ async function tick() {
   } catch (e) {}
 }
 render();
-tick();
-setInterval(tick, 2000);
+ensureRegistered().then(tick);
+setInterval(() => { tick(); if (++ticks % 8 === 0) ensureRegistered(); }, 2000);
 </script>
 </body>
 </html>
